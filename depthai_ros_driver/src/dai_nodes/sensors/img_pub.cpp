@@ -138,7 +138,11 @@ void ImagePublisher::closeQueue() {
     }
 }
 void ImagePublisher::link(dai::Node::Input& in) {
-    out->link(in);
+    if(encConfig.enabled) {
+        encoder->out.link(in);
+    } else {
+        out->link(in);
+    }
 }
 std::shared_ptr<dai::MessageQueue> ImagePublisher::getQueue() {
     return dataQ;

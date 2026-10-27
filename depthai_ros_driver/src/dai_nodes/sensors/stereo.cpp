@@ -322,6 +322,13 @@ void Stereo::setupStereoQueue(std::shared_ptr<dai::Device> device) {
             pubConf.maxWidth = ph->getOtherNodeParam<int>(alignName, "i_width");
             pubConf.maxHeight = ph->getOtherNodeParam<int>(alignName, "i_height");
         }
+    } else if(!aligned && platform == dai::Platform::RVC2 && ph->getOtherNodeParam<bool>("pipeline_gen", "i_enable_rgbd")) {
+        // On RVC2 the RGBD node aligns unaligned depth to the RGB stream, so depth has its size
+        auto rgbName = sensor_helpers::getNodeName(getROSNode(), sensor_helpers::NodeNameEnum::RGB);
+        if(getROSNode()->has_parameter(rgbName + ".i_width")) {
+            pubConf.maxWidth = ph->getOtherNodeParam<int>(rgbName, "i_width");
+            pubConf.maxHeight = ph->getOtherNodeParam<int>(rgbName, "i_height");
+        }
     }
     pubConf.socket = ph->getSocketID();
     pubConf.calibrationFile = ph->getParam<std::string>(ParamNames::CALIBRATION_FILE);

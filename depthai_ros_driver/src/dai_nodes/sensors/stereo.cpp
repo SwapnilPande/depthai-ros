@@ -166,21 +166,22 @@ void Stereo::setInOut(std::shared_ptr<dai::Pipeline> pipeline) {
         encConf.frameFreq = ph->getParam<int>("i_low_bandwidth_frame_freq");
         encConf.quality = ph->getParam<int>("i_low_bandwidth_quality");
         encConf.enabled = lowBandwidth;
+        int rotation = ph->getParam<int>(param_handlers::ParamNames::ROTATION);
 
         if(outputDisparity || lowBandwidth) {
             if(ph->getParam<bool>("i_use_neural_depth")) {
-                stereoPub = setupOutput(pipeline, stereoQName, &neuralDepthNode->disparity, ph->getParam<bool>("i_synced"), encConf);
+                stereoPub = setupOutput(pipeline, stereoQName, &neuralDepthNode->disparity, ph->getParam<bool>("i_synced"), encConf, rotation);
             } else {
-                stereoPub = setupOutput(pipeline, stereoQName, &stereoCamNode->disparity, ph->getParam<bool>("i_synced"), encConf);
+                stereoPub = setupOutput(pipeline, stereoQName, &stereoCamNode->disparity, ph->getParam<bool>("i_synced"), encConf, rotation);
             }
         } else {
             if(aligned && platform == dai::Platform::RVC4) {
-                stereoPub = setupOutput(pipeline, stereoQName, &alignNode->outputAligned, ph->getParam<bool>("i_synced"), encConf);
+                stereoPub = setupOutput(pipeline, stereoQName, &alignNode->outputAligned, ph->getParam<bool>("i_synced"), encConf, rotation);
             } else {
                 if(ph->getParam<bool>("i_use_neural_depth")) {
-                    stereoPub = setupOutput(pipeline, stereoQName, &neuralDepthNode->depth, ph->getParam<bool>("i_synced"), encConf);
+                    stereoPub = setupOutput(pipeline, stereoQName, &neuralDepthNode->depth, ph->getParam<bool>("i_synced"), encConf, rotation);
                 } else {
-                    stereoPub = setupOutput(pipeline, stereoQName, &stereoCamNode->depth, ph->getParam<bool>("i_synced"), encConf);
+                    stereoPub = setupOutput(pipeline, stereoQName, &stereoCamNode->depth, ph->getParam<bool>("i_synced"), encConf, rotation);
                 }
             }
         }
@@ -307,6 +308,28 @@ void Stereo::setupStereoQueue(std::shared_ptr<dai::Device> device) {
     pubConf.undistorted = !convConfig.alphaScalingEnabled;
     pubConf.width = ph->getParam<int>(ParamNames::WIDTH);
     pubConf.height = ph->getParam<int>(ParamNames::HEIGHT);
+    auto alignName = ph->getParam<std::string>("i_socket_name");
+    if(aligned && getROSNode()->has_parameter(alignName + ".i_width")) {
+        // Aligned depth has the size of the image it is aligned to
+        if(ph->getOtherNodeParam<bool>(alignName, "i_publish_full_resolution")) {
+            for(const auto& f : device->getConnectedCameraFeatures()) {
+                if(f.socket == ph->getSocketID()) {
+                    pubConf.maxWidth = f.width;
+                    pubConf.maxHeight = f.height;
+                }
+            }
+        } else {
+            pubConf.maxWidth = ph->getOtherNodeParam<int>(alignName, "i_width");
+            pubConf.maxHeight = ph->getOtherNodeParam<int>(alignName, "i_height");
+        }
+    } else if(!aligned && platform == dai::Platform::RVC2 && ph->getOtherNodeParam<bool>("pipeline_gen", "i_enable_rgbd")) {
+        // On RVC2 the RGBD node aligns unaligned depth to the RGB stream, so depth has its size
+        auto rgbName = sensor_helpers::getNodeName(getROSNode(), sensor_helpers::NodeNameEnum::RGB);
+        if(getROSNode()->has_parameter(rgbName + ".i_width")) {
+            pubConf.maxWidth = ph->getOtherNodeParam<int>(rgbName, "i_width");
+            pubConf.maxHeight = ph->getOtherNodeParam<int>(rgbName, "i_height");
+        }
+    }
     pubConf.socket = ph->getSocketID();
     pubConf.calibrationFile = ph->getParam<std::string>(ParamNames::CALIBRATION_FILE);
     pubConf.leftSocket = leftSensInfo.socket;

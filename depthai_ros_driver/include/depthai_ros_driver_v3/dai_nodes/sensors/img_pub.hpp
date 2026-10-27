@@ -23,10 +23,6 @@ class XLinkOut;
 }  // namespace node
 }  // namespace dai
 
-namespace tf2_ros {
-class StaticTransformBroadcaster;
-}
-
 namespace depthai_bridge {
 class ImageConverter;
 }
@@ -66,6 +62,7 @@ class ImagePublisher {
      *
      * Creates XLinkOut if synced and VideoEncoder if lowBandwidth is enabled. linkFunc is stored and returned when link is called.
      * If rotation is 180, creates an ImageManip that rotates the output before the encoder, the queue and the Sync node.
+     * Rotated images keep their frame_id: TF for that frame must describe the rotated camera.
      */
     ImagePublisher(std::shared_ptr<rclcpp::Node> node,
                    std::shared_ptr<dai::Pipeline> pipeline,
@@ -108,7 +105,6 @@ class ImagePublisher {
     std::shared_ptr<dai::node::XLinkOut> xout;
     std::shared_ptr<dai::node::VideoEncoder> encoder;
     std::shared_ptr<dai::node::ImageManip> rotationManip;
-    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> rotatedFrameBroadcaster;
     dai::Node::Output* out;
     rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr infoPub;
     rclcpp::Publisher<ffmpeg_image_transport_msgs::msg::FFMPEGPacket>::SharedPtr ffmpegPub;

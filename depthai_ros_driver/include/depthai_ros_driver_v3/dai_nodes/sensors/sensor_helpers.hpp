@@ -60,8 +60,8 @@ sensor_msgs::msg::CameraInfo getCalibInfo(const rclcpp::Logger& logger,
                                           int width = 0,
                                           int height = 0);
 /**
- * @brief Turn camera info of an image into camera info of the same image rotated by 180 degrees, expressed in the optical frame
- * rotated 180 degrees about z.
+ * @brief Turn camera info of an image into camera info of the same image rotated by 180 degrees, for a frame rotated 180 degrees
+ * about the optical (z) axis.
  *
  * cx' = w - 1 - cx, cy' = h - 1 - cy, focal lengths unchanged. Tangential, thin prism and tilt distortion terms change sign,
  * radial ones do not.

@@ -13,10 +13,8 @@
 #include "depthai_ros_driver_v3/dai_nodes/sensors/sensor_helpers.hpp"
 #include "depthai_ros_driver_v3/utils.hpp"
 #include "ffmpeg_image_transport_msgs/msg/ffmpeg_packet.hpp"
-#include "geometry_msgs/msg/transform_stamped.hpp"
 #include "image_transport/image_transport.hpp"
 #include "sensor_msgs/msg/compressed_image.hpp"
-#include "tf2_ros/static_transform_broadcaster.h"
 
 namespace depthai_ros_driver {
 namespace dai_nodes {
@@ -53,16 +51,11 @@ void ImagePublisher::setup(std::shared_ptr<dai::Device> device, const utils::Img
     if(rotationManip) {
         // 2 bytes per pixel covers NV12, RAW8 and RAW16 outputs
         rotationManip->setMaxOutputFrameSize(std::max(pubConfig.width * pubConfig.height, pubConfig.maxWidth * pubConfig.maxHeight) * 2);
-        // Rotated images get their own optical frame, rotated 180 degrees about z
-        geometry_msgs::msg::TransformStamped ts;
-        ts.header.stamp = node->get_clock()->now();
-        ts.header.frame_id = convConfig.tfPrefix;
-        ts.child_frame_id = convConfig.tfPrefix + "_rotated";
-        ts.transform.rotation.z = 1.0;
-        ts.transform.rotation.w = 0.0;
-        rotatedFrameBroadcaster = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
-        rotatedFrameBroadcaster->sendTransform(ts);
-        convConfig.tfPrefix = ts.child_frame_id;
+        // Rotated images keep the optical frame name, so that frame's TF must describe the rotated camera (mounted upright)
+        RCLCPP_INFO(node->get_logger(),
+                    "%s: rotated 180 degrees in frame %s; its TF must be rotated 180 degrees about the optical axis to match",
+                    qName.c_str(),
+                    convConfig.tfPrefix.c_str());
         if(!pubConfig.calibrationFile.empty()) {
             RCLCPP_WARN(node->get_logger(), "%s: i_calibration_file is published as is, it must describe the rotated image", qName.c_str());
         }

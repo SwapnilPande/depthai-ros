@@ -8,6 +8,8 @@
 #include "depthai/pipeline/Pipeline.hpp"
 #include "depthai/pipeline/datatype/ADatatype.hpp"
 #include "depthai/pipeline/datatype/ImgFrame.hpp"
+#include "depthai/pipeline/node/ImageFilters.hpp"
+#include "depthai/pipeline/node/ImageManip.hpp"
 #include "depthai/pipeline/node/NeuralDepth.hpp"
 #include "depthai/pipeline/node/StereoDepth.hpp"
 #include "depthai_ros_driver_v3/dai_nodes/nn/nn_helpers.hpp"
@@ -180,6 +182,30 @@ void Stereo::setInOut(std::shared_ptr<dai::Pipeline> pipeline) {
             } else {
                 if(ph->getParam<bool>("i_use_neural_depth")) {
                     stereoPub = setupOutput(pipeline, stereoQName, &neuralDepthNode->depth, ph->getParam<bool>("i_synced"), encConf, rotation);
+                } else if(ph->getParam<bool>("i_host_spatial_filter")) {
+                    dai::Node::Output* depthOut = &stereoCamNode->depth;
+                    if(rotation == 180) {
+                        // Rotate on the device as ImagePublisher would; it can't once the depth has left for the host
+                        auto rotationManip = pipeline->create<dai::node::ImageManip>();
+                        rotationManip->initialConfig->addFlipHorizontal().addFlipVertical();
+                        rotationManip->inputImage.setBlocking(false);
+                        depthOut->link(rotationManip->inputImage);
+                        depthOut = &rotationManip->out;
+                    }
+                    hostFilters = pipeline->create<dai::node::ImageFilters>();
+                    hostFilters->setRunOnHost(true);
+                    dai::filters::params::SpatialFilter spatial;
+                    spatial.enable = true;
+                    spatial.alpha = ph->getParam<float>("i_host_spatial_filter_alpha");
+                    spatial.delta = ph->getParam<int>("i_host_spatial_filter_delta");
+                    spatial.holeFillingRadius = ph->getParam<int>("i_host_spatial_filter_hole_filling_radius");
+                    spatial.numIterations = ph->getParam<int>("i_host_spatial_filter_iterations");
+                    hostFilters->initialConfig->insertFilter(spatial);
+                    // Drop stale frames rather than queue them behind the filter
+                    hostFilters->input.setBlocking(false);
+                    hostFilters->input.setMaxSize(1);
+                    depthOut->link(hostFilters->input);
+                    stereoPub = setupOutput(pipeline, stereoQName, &hostFilters->output, ph->getParam<bool>("i_synced"), encConf, 0);
                 } else {
                     stereoPub = setupOutput(pipeline, stereoQName, &stereoCamNode->depth, ph->getParam<bool>("i_synced"), encConf, rotation);
                 }

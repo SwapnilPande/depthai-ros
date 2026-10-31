@@ -16,6 +16,7 @@ StereoParamHandler::StereoParamHandler(std::shared_ptr<rclcpp::Node> node, const
     : BaseParamHandler(node, name, deviceName, rsCompat) {
     depthPresetMap = {{"FAST_ACCURACY", dai::node::StereoDepth::PresetMode::FAST_ACCURACY},
                       {"DEFAULT", dai::node::StereoDepth::PresetMode::DEFAULT},
+                      {"FAST_DENSITY", dai::node::StereoDepth::PresetMode::FAST_DENSITY},
                       {"FACE", dai::node::StereoDepth::PresetMode::FACE},
                       {"HIGH_DETAIL", dai::node::StereoDepth::PresetMode::HIGH_DETAIL},
                       {"ROBOTICS", dai::node::StereoDepth::PresetMode::ROBOTICS}};
@@ -157,6 +158,11 @@ void StereoParamHandler::declareParams(std::shared_ptr<dai::node::StereoDepth> s
         }
     }
     stereo->setRectifyEdgeFillColor(declareAndLogParam<int>("i_rectify_edge_fill_color", 0));
+    // The presets' filters can outrun their default SHAVE share at 1280x800 (frames queue on the device).
+    if(declareAndLogParam<bool>("i_set_post_processing_hardware_resources", false)) {
+        stereo->setPostProcessingHardwareResources(declareAndLogParam<int>("i_post_processing_shaves", 5),
+                                                   declareAndLogParam<int>("i_post_processing_memory_slices", 5));
+    }
     if(declareAndLogParam<bool>("i_enable_alpha_scaling", false)) {
         stereo->setAlphaScaling(declareAndLogParam<float>("i_alpha_scaling", 0.0));
     }

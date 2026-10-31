@@ -57,6 +57,7 @@ StereoParamHandler::StereoParamHandler(std::shared_ptr<rclcpp::Node> node, const
     declareAndLogParam<std::string>(ParamNames::LOW_BANDWIDTH_FFMPEG_ENCODER, "libx264");
     declareAndLogParam<bool>("i_output_disparity", false);
     declareAndLogParam<int>(ParamNames::ROTATION, 0);
+    declareAndLogParam<bool>("i_rotate_on_host", false);
     declareAndLogParam<bool>(ParamNames::GET_BASE_DEVICE_TIMESTAMP, false);
     declareAndLogParam<bool>(ParamNames::UPDATE_ROS_BASE_TIME_ON_ROS_MSG, false);
     declareAndLogParam<bool>(ParamNames::PUBLISH_TOPIC, true);
@@ -176,6 +177,11 @@ void StereoParamHandler::declareParams(std::shared_ptr<dai::node::StereoDepth> s
     declareAndLogParam<int>("i_host_spatial_filter_delta", 30);
     declareAndLogParam<int>("i_host_spatial_filter_hole_filling_radius", 2);
     declareAndLogParam<int>("i_host_spatial_filter_iterations", 1);
+    // Only with i_host_spatial_filter. It runs on depth (mm), so the threshold acts as a depth step in mm, not the
+    // disparity levels FilterParams.hpp describes (measured: 20 shreds surfaces beyond ~1.5 m, 200 keeps them).
+    declareAndLogParam<bool>("i_host_speckle_filter", false);
+    declareAndLogParam<int>("i_host_speckle_filter_speckle_range", 200);
+    declareAndLogParam<int>("i_host_speckle_filter_difference_threshold", 200);
     if(declareAndLogParam<bool>("i_enable_alpha_scaling", false)) {
         stereo->setAlphaScaling(declareAndLogParam<float>("i_alpha_scaling", 0.0));
     }

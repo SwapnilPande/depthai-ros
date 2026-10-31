@@ -16,6 +16,7 @@ StereoParamHandler::StereoParamHandler(std::shared_ptr<rclcpp::Node> node, const
     : BaseParamHandler(node, name, deviceName, rsCompat) {
     depthPresetMap = {{"FAST_ACCURACY", dai::node::StereoDepth::PresetMode::FAST_ACCURACY},
                       {"DEFAULT", dai::node::StereoDepth::PresetMode::DEFAULT},
+                      {"FAST_DENSITY", dai::node::StereoDepth::PresetMode::FAST_DENSITY},
                       {"FACE", dai::node::StereoDepth::PresetMode::FACE},
                       {"HIGH_DETAIL", dai::node::StereoDepth::PresetMode::HIGH_DETAIL},
                       {"ROBOTICS", dai::node::StereoDepth::PresetMode::ROBOTICS}};
@@ -24,6 +25,10 @@ StereoParamHandler::StereoParamHandler(std::shared_ptr<rclcpp::Node> node, const
         {"DISPARITY_64", dai::StereoDepthConfig::CostMatching::DisparityWidth::DISPARITY_64},
         {"DISPARITY_96", dai::StereoDepthConfig::CostMatching::DisparityWidth::DISPARITY_96},
     };
+    medianFilterMap = {{"MEDIAN_OFF", dai::StereoDepthConfig::MedianFilter::MEDIAN_OFF},
+                       {"KERNEL_3x3", dai::StereoDepthConfig::MedianFilter::KERNEL_3x3},
+                       {"KERNEL_5x5", dai::StereoDepthConfig::MedianFilter::KERNEL_5x5},
+                       {"KERNEL_7x7", dai::StereoDepthConfig::MedianFilter::KERNEL_7x7}};
 
     decimationModeMap = {{"PIXEL_SKIPPING", dai::StereoDepthConfig::PostProcessing::DecimationFilter::DecimationMode::PIXEL_SKIPPING},
                          {"NON_ZERO_MEDIAN", dai::StereoDepthConfig::PostProcessing::DecimationFilter::DecimationMode::NON_ZERO_MEDIAN},
@@ -52,6 +57,7 @@ StereoParamHandler::StereoParamHandler(std::shared_ptr<rclcpp::Node> node, const
     declareAndLogParam<std::string>(ParamNames::LOW_BANDWIDTH_FFMPEG_ENCODER, "libx264");
     declareAndLogParam<bool>("i_output_disparity", false);
     declareAndLogParam<int>(ParamNames::ROTATION, 0);
+    declareAndLogParam<bool>("i_rotate_on_host", false);
     declareAndLogParam<bool>(ParamNames::GET_BASE_DEVICE_TIMESTAMP, false);
     declareAndLogParam<bool>(ParamNames::UPDATE_ROS_BASE_TIME_ON_ROS_MSG, false);
     declareAndLogParam<bool>(ParamNames::PUBLISH_TOPIC, true);
@@ -142,6 +148,11 @@ void StereoParamHandler::declareParams(std::shared_ptr<dai::node::StereoDepth> s
     stereo->initialConfig->setBilateralFilterSigma(declareAndLogParam<int>("i_bilateral_sigma", 0));
     stereo->initialConfig->setLeftRightCheckThreshold(declareAndLogParam<int>("i_lrc_threshold", 10));
     // // stereo->initialConfig->setMedianFilter(static_cast<dai::MedianFilter>(declareAndLogParam<int>("i_depth_filter_size", 5)));
+    // Empty keeps the preset's median. On RVC2 it runs in the stereo hardware unless decimation comes first.
+    auto median = declareAndLogParam<std::string>("i_median_filter", "");
+    if(!median.empty()) {
+        stereo->initialConfig->setMedianFilter(utils::getValFromMap(median, medianFilterMap));
+    }
     stereo->initialConfig->setConfidenceThreshold(declareAndLogParam<int>("i_stereo_conf_threshold", 15));
     if(declareAndLogParam<bool>("i_subpixel", true) && !lowBandwidth) {
         stereo->initialConfig->setSubpixel(true);
@@ -153,6 +164,24 @@ void StereoParamHandler::declareParams(std::shared_ptr<dai::node::StereoDepth> s
         }
     }
     stereo->setRectifyEdgeFillColor(declareAndLogParam<int>("i_rectify_edge_fill_color", 0));
+    // The presets' filters can outrun their default SHAVE share at 1280x800 (frames queue on the device).
+    if(declareAndLogParam<bool>("i_set_post_processing_hardware_resources", false)) {
+        stereo->setPostProcessingHardwareResources(declareAndLogParam<int>("i_post_processing_shaves", 5),
+                                                   declareAndLogParam<int>("i_post_processing_memory_slices", 5));
+    }
+    // A spatial filter on the host (the driver process) instead of the device's SHAVEs: at 1280x800 the on-device
+    // filters add ~70 ms per frame, the host one ~5 ms. Applied by the Stereo node to the published depth; with i_synced,
+    // also set sync.i_run_on_host, or the device Sync ships the filtered depth back (~0.7 s of lag).
+    declareAndLogParam<bool>("i_host_spatial_filter", false);
+    declareAndLogParam<float>("i_host_spatial_filter_alpha", 0.5);
+    declareAndLogParam<int>("i_host_spatial_filter_delta", 30);
+    declareAndLogParam<int>("i_host_spatial_filter_hole_filling_radius", 2);
+    declareAndLogParam<int>("i_host_spatial_filter_iterations", 1);
+    // Only with i_host_spatial_filter. It runs on depth (mm), so the threshold acts as a depth step in mm, not the
+    // disparity levels FilterParams.hpp describes (measured: 20 shreds surfaces beyond ~1.5 m, 200 keeps them).
+    declareAndLogParam<bool>("i_host_speckle_filter", false);
+    declareAndLogParam<int>("i_host_speckle_filter_speckle_range", 200);
+    declareAndLogParam<int>("i_host_speckle_filter_difference_threshold", 200);
     if(declareAndLogParam<bool>("i_enable_alpha_scaling", false)) {
         stereo->setAlphaScaling(declareAndLogParam<float>("i_alpha_scaling", 0.0));
     }

@@ -26,14 +26,19 @@ ImagePublisher::ImagePublisher(std::shared_ptr<rclcpp::Node> node,
                                bool synced,
                                bool ipcEnabled,
                                const utils::VideoEncoderConfig& encoderConfig,
-                               int rotation)
+                               int rotation,
+                               bool rotateOnHost)
     : node(node), encConfig(encoderConfig), out(out), qName(qName), ipcEnabled(ipcEnabled), synced(synced) {
     if(rotation != 0) {
         if(rotation != 180) {
             throw std::runtime_error("Unsupported rotation " + std::to_string(rotation) + " for " + qName + ", only 0 and 180 are supported");
         }
         // Rotate on device, before the encoder, the queue and the Sync node
+        if(rotateOnHost && encoderConfig.enabled) {
+            throw std::runtime_error("Rotation on the host needs an unencoded output (" + qName + " is encoded on the device)");
+        }
         rotationManip = pipeline->create<dai::node::ImageManip>();
+        rotationManip->setRunOnHost(rotateOnHost);
         rotationManip->initialConfig->addFlipHorizontal().addFlipVertical();
         // Don't let a slow manip stall the output it shares with alignment and NN
         rotationManip->inputImage.setBlocking(false);

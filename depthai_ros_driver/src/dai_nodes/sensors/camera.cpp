@@ -61,7 +61,7 @@ void Camera::setInOut(std::shared_ptr<dai::Pipeline> pipeline) {
         encConfig.quality = ph->getParam<int>(ParamNames::LOW_BANDWIDTH_QUALITY);
         encConfig.enabled = lowBandwidth;
 
-        rgbPub = setupOutput(pipeline, ispQName, defaultOut, ph->getParam<bool>(ParamNames::SYNCED), encConfig, ph->getParam<int>(ParamNames::ROTATION));
+        rgbPub = setupOutput(pipeline, ispQName, defaultOut, ph->getParam<bool>(ParamNames::SYNCED), encConfig, ph->getParam<int>(ParamNames::ROTATION), ph->getParam<bool>("i_rotate_on_host"));
     }
 }
 

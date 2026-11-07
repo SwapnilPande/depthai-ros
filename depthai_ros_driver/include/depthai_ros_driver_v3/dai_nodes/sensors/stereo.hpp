@@ -17,6 +17,7 @@ class ADatatype;
 class ImgFrame;
 namespace node {
 class ImageAlign;
+class ImageFilters;
 class StereoDepth;
 class NeuralDepth;
 }  // namespace node
@@ -86,6 +87,7 @@ class Stereo : public BaseNode {
     std::shared_ptr<dai::node::StereoDepth> stereoCamNode;
     std::shared_ptr<dai::node::NeuralDepth> neuralDepthNode;
     std::shared_ptr<dai::node::ImageAlign> alignNode;
+    std::shared_ptr<dai::node::ImageFilters> hostFilters;
     dai::Platform platform;
     std::unique_ptr<RGBD> rgbdNodeLeft, rgbdNodeRight;
     std::shared_ptr<SensorWrapper> left, right;

@@ -72,8 +72,9 @@ std::shared_ptr<sensor_helpers::ImagePublisher> BaseNode::setupOutput(std::share
                                                                       dai::Node::Output* out,
                                                                       bool isSynced,
                                                                       const utils::VideoEncoderConfig& encoderConfig,
-                                                                      int rotation) {
-    return std::make_shared<sensor_helpers::ImagePublisher>(getROSNode(), pipeline, qName, out, isSynced, ipcEnabled(), encoderConfig, rotation);
+                                                                      int rotation,
+                                                                      bool rotateOnHost) {
+    return std::make_shared<sensor_helpers::ImagePublisher>(getROSNode(), pipeline, qName, out, isSynced, ipcEnabled(), encoderConfig, rotation, rotateOnHost);
 };
 
 void BaseNode::setNames() {

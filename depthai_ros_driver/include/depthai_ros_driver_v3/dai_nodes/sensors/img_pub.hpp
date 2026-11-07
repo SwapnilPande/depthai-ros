@@ -61,7 +61,8 @@ class ImagePublisher {
      * @brief Construct a new Image Publisher object
      *
      * Creates XLinkOut if synced and VideoEncoder if lowBandwidth is enabled. linkFunc is stored and returned when link is called.
-     * If rotation is 180, creates an ImageManip that rotates the output before the encoder, the queue and the Sync node.
+     * If rotation is 180, creates an ImageManip that rotates the output before the encoder, the queue and the Sync node;
+     * on the host with rotateOnHost (unencoded outputs only), which spares the device the work.
      * Rotated images keep their frame_id: TF for that frame must describe the rotated camera.
      */
     ImagePublisher(std::shared_ptr<rclcpp::Node> node,
@@ -71,7 +72,8 @@ class ImagePublisher {
                    bool synced = false,
                    bool ipcEnabled = false,
                    const utils::VideoEncoderConfig& encoderConfig = {},
-                   int rotation = 0);
+                   int rotation = 0,
+                   bool rotateOnHost = false);
 
     ~ImagePublisher();
     /**

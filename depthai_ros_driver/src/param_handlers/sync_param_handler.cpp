@@ -11,6 +11,8 @@ SyncParamHandler::~SyncParamHandler() = default;
 void SyncParamHandler::declareParams(std::shared_ptr<dai::node::Sync> sync) {
     sync->setSyncThreshold(std::chrono::milliseconds(declareAndLogParam<int>("sync_threshold", 10)));
     sync->setSyncAttempts(declareAndLogParam<int>("sync_attempts", 10));
+    // On the host when an input is produced there (e.g. stereo's i_host_spatial_filter): a device Sync would ship it back.
+    sync->setRunOnHost(declareAndLogParam<bool>("i_run_on_host", false));
 }
 
 }  // namespace param_handlers
